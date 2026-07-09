@@ -1,0 +1,100 @@
+Fase 0
+Vas a actuar como un ingeniero backend senior especializado en Spring Boot, trabajando bajo una arquitectura estrictamente dividida en capas (Controller, Service, Repository, Entity, Config, Security).
+
+En este primer intercambio SOLO necesito la configuración base del proyecto, nada de lógica de negocio todavía. Necesito:
+
+- pom.xml con las dependencias necesarias para: Spring Web, Spring Data JPA, Spring Security, PostgreSQL driver, Lombok, Flyway, y la librería jjwt en su versión 0.12.x (jjwt-api, jjwt-impl y jjwt-jackson, estas dos últimas con scope runtime).
+- application.yml base, más application-local.yml y application-prod.yml como perfiles separados. El perfil activo debe resolverse con spring.profiles.active: ${SPRING_PROFILES_ACTIVE:local}.
+- spring.jpa.hibernate.ddl-auto debe quedar en "none" en todos los perfiles, porque el control del esquema lo va a llevar Flyway, no Hibernate.
+- En producción, cualquier dato sensible (URL de base de datos, usuario, contraseña, secreto JWT) debe leerse desde variables de entorno, nunca quedar escrito directamente en el YAML.
+
+Reglas que debes respetar en todo momento durante este proyecto:
+- No agregues dependencias ni configuraciones que no te haya pedido.
+- No uses arquitecturas orientadas a vistas (nada de Thymeleaf, MVC con vistas, etc.) — esto es una API REST pura.
+- Si algo no queda claro (nombre de la base de datos, versión de Java, puerto, etc.), pregúntame antes de asumirlo.
+- Al entregar cada archivo, indica entre paréntesis a qué capa pertenece, por ejemplo: application.yml (Config).
+
+Cuando termines esta fase, ciérrala con un resumen breve de qué archivos creaste y qué hace cada uno, y pregúntame si avanzamos a la siguiente fase antes de continuar.
+Fase 1
+Seguimos en el mismo proyecto backend (Spring Boot, arquitectura en capas estricta, API REST con autenticación JWT). Ahora toca la capa de persistencia.
+
+Necesito que generes:
+
+1. Entidad User (Entity) que implemente la interfaz UserDetails de Spring Security, con los campos típicos de un usuario del sistema.
+2. Entidad Role (Entity), relacionada con User mediante una relación Many-to-Many, usando una tabla intermedia llamada user_roles. Esa relación debe cargarse en modo EAGER y con cascade configurado en PERSIST y MERGE.
+3. Repositorios (Repository) para ambas entidades, extendiendo JpaRepository.
+4. Scripts de migración con Flyway para crear estas tablas e insertar los roles iniciales. Nómbralos siguiendo el patrón V<numero>__<descripcion_en_snake_case>.sql (por ejemplo, V1__create_users_and_roles.sql).
+
+Recuerda las reglas del proyecto:
+- No renombres clases, campos ni métodos por tu cuenta — si necesitas un nombre distinto al que te doy, pregúntame primero.
+- Los imports deben ser de jakarta.* (estamos en Spring Boot 3), no javax.*.
+- Indica la capa de cada archivo entre paréntesis al entregarlo.
+- No avances a la siguiente fase sin que yo lo confirme; cierra esta fase con un resumen de lo generado y pregúntame si seguimos.
+Fase 2
+Continuamos con el mismo proyecto. Ahora necesito el núcleo de seguridad basado en JWT, sin autenticación básica de ningún tipo.
+
+Componentes que necesito, todos en la capa Security:
+
+1. JwtAuth: implementa AuthenticationEntryPoint. Cuando ocurre un error de autenticación, debe responder con un error HTTP 401 usando response.sendError, pasando el mensaje de la excepción.
+
+2. JwtTokenProvider: componente que lee desde application.yml el secreto JWT y el tiempo de expiración usando @Value. Debe exponer:
+   - Un método privado para construir la clave de firma a partir del secreto en Base64 (usando Keys.hmacShaKeyFor).
+   - Un método para generar el token a partir de un objeto Authentication, usando el builder de Jwts (setSubject, setIssuedAt, setExpiration, signWith).
+   - Un método para extraer el username desde el token.
+   - Un método para validar el token.
+
+   Importante: usa la API de la versión 0.12.x de jjwt, con la sintaxis Jwts.parser().setSigningKey(...).build()... No la reemplaces por otras variantes de la librería aunque conozcas versiones más nuevas o antiguas — necesito exactamente ese estilo de llamada porque el resto del proyecto depende de que compile con esa versión específica.
+
+3. JwtAuthFilter: filtro que extiende OncePerRequestFilter. Debe extraer el token del header Authorization (formato Bearer), validarlo, cargar el usuario correspondiente y dejarlo en el contexto de seguridad de Spring.
+
+Reglas: respeta los nombres exactos de las clases que te di arriba, indica la capa de cada archivo, y cierra la fase con un resumen antes de seguir a la siguiente.
+Fase 3
+Seguimos en el mismo proyecto. Ahora arma el flujo completo de login.
+
+Necesito:
+
+1. DTO LoginRequest: con username y password.
+2. DTO JwtAuthResponse: con accessToken y un tokenType que por defecto valga "Bearer".
+3. Interfaz AuthService con un método login que reciba un LoginRequest y devuelva el token como String.
+4. AuthServiceImpl: implementa AuthService. Debe usar AuthenticationManager para autenticar las credenciales, guardar la autenticación en el contexto de seguridad, y luego usar JwtTokenProvider para generar el token.
+5. AuthController: expone POST /api/auth/login, recibe un LoginRequest y responde con un JwtAuthResponse.
+6. La clase SecurityConfiguration completa: debe deshabilitar CSRF, permitir sin autenticación todo lo que empiece con /api/auth/, exigir autenticación en el resto de rutas, registrar el manejador de errores de autenticación (JwtAuth) y agregar el JwtAuthFilter antes del filtro estándar de usuario/contraseña de Spring. También necesito los beans de PasswordEncoder (BCrypt) y AuthenticationManager.
+
+No uses httpBasic en ningún punto de la configuración — toda la autenticación pasa por JWT.
+
+Como en las fases anteriores: respeta los nombres exactos, marca la capa de cada archivo, y espera mi confirmación antes de avanzar a la fase de lógica de negocio.
+Fase 4
+Con la base de seguridad y autenticación ya lista, ahora vamos a construir la lógica de negocio específica de mi proyecto.
+
+(Aquí describe tu entidad/módulo real: por ejemplo "Empleados", "Productos", "Reservas", y qué operaciones necesita: crear, listar, actualizar, eliminar, filtrar por algún campo. Sé específico con los campos.)
+
+Para esta parte necesito, respetando la arquitectura en capas:
+- Entity correspondiente.
+- Repository que extienda JpaRepository.
+- Interfaz de Service y su implementación (Service, con sufijo Impl).
+- Controller con los endpoints REST necesarios, protegidos según corresponda con @PreAuthorize (indícame qué roles deberían tener acceso a cada endpoint, o pregúntame si no es obvio).
+
+Recuerda: no inventes reglas de negocio que no te haya pedido, pregúntame si algo es ambiguo, indica la capa de cada archivo, y cierra con un resumen antes de seguir.
+Fase 5
+Ya tengo el proyecto backend funcionando en capas con JWT. Ahora necesito containerizarlo.
+
+Necesito:
+
+1. Un Dockerfile que use como base una imagen Alpine de Temurin (por ejemplo eclipse-temurin:17-jdk-alpine, ajusta la versión de Java a la que estemos usando en el proyecto). Debe definir el WORKDIR en /app, exponer el puerto 8080, y el ENTRYPOINT debe lanzar el .jar generado.
+
+2. Un docker-compose.yml con dos servicios: el backend (web) y una base de datos PostgreSQL. El servicio web debe depender del servicio de base de datos (depends_on). Mapea el puerto de PostgreSQL a uno distinto del estándar en el host (por ejemplo 5433:5432) para evitar conflictos si ya tengo Postgres corriendo localmente. Incluye un volumen para persistir los datos de la base.
+
+No agregues nada fuera de lo pedido y pregúntame si necesitas algún dato que no te haya dado (nombre de la base, usuario, puerto expuesto, etc.).
+Fase 6
+Última fase del proyecto. Necesito un workflow de GitHub Actions para automatizar el build (y opcionalmente el build/push de la imagen Docker).
+
+Necesito un archivo YAML dentro de .github/workflows/ que:
+- Se dispare con un evento push a la(s) rama(s) que te indique.
+- Corra en un runner ubuntu-latest.
+- Clone el repositorio (actions/checkout).
+- Configure el JDK con la distribución temurin (actions/setup-java), usando la versión de Java del proyecto.
+- Compile el proyecto con Maven, por ejemplo con mvn clean package -DskipTests para el flujo de despliegue.
+
+Si además necesito construir y subir la imagen a Docker Hub, agrega los pasos correspondientes usando GitHub Secrets para las credenciales (DOCKER_USERNAME y DOCKER_PASSWORD), nunca escritas directamente en el archivo.
+
+Indica la capa/tipo de cada archivo generado y ciérralo con un resumen de lo que hace el workflow.

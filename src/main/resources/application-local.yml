@@ -1,0 +1,22 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/pnc_hotel_db
+    username: postgres
+    password: postgres
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+
+app:
+  jwt:
+    # Secreto solo para desarrollo local. NUNCA usar este valor en producción.
+    secret: local-dev-secret-key-change-me-not-for-production-use-only
+
+logging:
+  level:
+    com.uca.pncparcialfinalhotel: DEBUG
